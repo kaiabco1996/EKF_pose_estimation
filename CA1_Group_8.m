@@ -120,6 +120,53 @@ V= float(cos(x(3)*x(4)));
 
 %Setup measurement matrix here:
 sensor_meas= [mx; my; speed/3.6; yawrate/180*pi];
+m = size(measurements, 2);
+
+x0 = [];
+x1 = [];
+x2 = [];
+x3 = [];
+x4 = [];
+x5 = [];
+Zx = [];
+Zy = [];
+Px = [];
+Py = [];
+Pdx = [];
+Pdy = [];
+Pddx = [];
+Pddy = [];
+Kx = [];
+Ky = [];
+Kdx = [];
+Kdy = [];
+Kddx = [];
+dstate = [];
+
+function savestates(x, Z, P, K)
+    global x0 x1 x2 x3 x4 x5 Zx Zy Px Py Pdx Pdy Pddx Pddy Kx Ky Kdx Kdy Kddx
+
+    x0 = [x0, x(1)];
+    x1 = [x1, x(2)];
+    x2 = [x2, x(3)];
+    x3 = [x3, x(4)];
+    x4 = [x4, x(5)];
+
+    Zx = [Zx, Z(1)];
+    Zy = [Zy, Z(2)];
+
+    Px = [Px, P(1, 1)];
+    Py = [Py, P(2, 2)];
+    Pdx = [Pdx, P(3, 3)];
+    Pdy = [Pdy, P(4, 4)];
+    Pddx = [Pddx, P(5, 5)];
+
+    Kx = [Kx, K(1, 1)];
+    Ky = [Ky, K(2, 1)];
+    Kdx = [Kdx, K(3, 1)];
+    Kdy = [Kdy, K(4, 1)];
+    Kddx = [Kddx, K(5, 1)];
+end
 
 
 for filterstep = 1:m
