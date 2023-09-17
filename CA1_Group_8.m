@@ -120,3 +120,70 @@ V= float(cos(x(3)*x(4)));
 
 %Setup measurement matrix here:
 sensor_meas= [mx; my; speed/3.6; yawrate/180*pi];
+
+
+for filterstep = 1:m
+    % Time Update (Prediction)
+    % ========================
+    % Project the state ahead
+    % see "Dynamic Matrix"
+    if abs(yawrate(filterstep)) < 0.0001 % Driving straight
+        x(1) = x(1) + x(4)*dt * cos(x(3));
+        x(2) = x(2) + x(4)*dt * sin(x(3));
+        x(3) = x(3);
+        x(4) = x(4);
+        x(5) = 0.0000001; % avoid numerical issues in Jacobians
+        dstate(filterstep) = 0;
+    else % otherwise
+        x(1) = x(1) + (x(4)/x(5)) * (sin(x(5)*dt+x(3)) - sin(x(3)));
+        x(2) = x(2) + (x(4)/x(5)) * (-cos(x(5)*dt+x(3)) + cos(x(3)));
+        x(3) = mod((x(3) + x(5)*dt + pi), (2.0*pi)) - pi;
+        x(4) = x(4);
+        x(5) = x(5);
+        dstate(filterstep) = 1;
+    end
+    
+    % Calculate the Jacobian of the Dynamic Matrix A
+    % see "Calculate the Jacobian of the Dynamic Matrix with respect to the state vector"
+    a13 = (x(4)/x(5)) * (cos(x(5)*dt+x(3)) - cos(x(3)));
+    a14 = (1.0/x(5)) * (sin(x(5)*dt+x(3)) - sin(x(3)));
+    a15 = (dt*x(4)/x(5))*cos(x(5)*dt+x(3)) - (x(4)/x(5)^2)*(sin(x(5)*dt+x(3)) - sin(x(3)));
+    a23 = (x(4)/x(5)) * (sin(x(5)*dt+x(3)) - sin(x(3)));
+    a24 = (1.0/x(5)) * (-cos(x(5)*dt+x(3)) + cos(x(3)));
+    a25 = (dt*x(4)/x(5))*sin(x(5)*dt+x(3)) - (x(4)/x(5)^2)*(-cos(x(5)*dt+x(3)) + cos(x(3)));
+    
+    JA = [1.0, 0.0, a13, a14, a15;
+          0.0, 1.0, a23, a24, a25;
+          0.0, 0.0, 1.0, 0.0, dt;
+          0.0, 0.0, 0.0, 1.0, 0.0;
+          0.0, 0.0, 0.0, 0.0, 1.0];
+    
+    % Project the error covariance ahead
+    P = JA * P * JA' + Q;
+
+    hx = [x(1); x(2); x(4); x(5)];
+
+    if GPS(filterstep)
+        JH = [1.0, 0.0, 0.0, 0.0, 0.0;
+            0.0, 1.0, 0.0, 0.0, 0.0;
+            0.0, 0.0, 0.0, 1.0, 0.0;
+            0.0, 0.0, 0.0, 0.0, 1.0];
+    else
+        JH = [0.0, 0.0, 0.0, 0.0, 0.0;
+            0.0, 0.0, 0.0, 0.0, 0.0;
+            0.0, 0.0, 0.0, 1.0, 0.0;
+            0.0, 0.0, 0.0, 0.0, 1.0];
+    end
+
+    S = JH * P * JH' + R;
+    K = (P * JH') / S;
+
+    % Update the estimate
+    Z = measurements(:, filterstep);
+    y = Z - hx; % Innovation or Residual
+    x = x + K * y;
+
+    % Update the error covariance
+    P = (eye(size(K, 1)) - K * JH) * P;
+
+end
