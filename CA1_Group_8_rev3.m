@@ -1,10 +1,10 @@
 %EE5111 AY2023/2024 Semester 1
 %CA 1: Multi-Sensor Pose Estimation for Autonomous Vehicles
 %Group 8 Simulation Code
-%This program simulates our sensor fusion design proposal using a GPS and
-%IMU to determine location and pose of a vehicle in a 2D plane. Extended
-%Kalman Filter is used to estimate the true states while gaussian noise is
-%applied to the true state values to simulate sensor outputs.
+%This program simulates a sensor fusion design proposal using a GPS and
+%IMU to determine location and heading of a vehicle in a 2D plane. Extended
+%Kalman Filter is used to estimate the true state values while gaussian noise is
+%applied to the true state values to simulate sensor outputs. 
 
 %% Initialization
 
@@ -121,8 +121,8 @@ h=eye(4,4);
 x = [mx(1); my(1); course(1)*(pi/180); speed(1)/3.6+0.001; yawrate(1)*(pi/180)];
 
 % Calculate U and V for quiver plots
-U = cos(x(3)) * x(4);
-V = sin(x(3)) * x(4);
+%U = cos(x(3)) * x(4);
+%V = sin(x(3)) * x(4);
 
 %Setup true state matrix here:
 true_states = [mx; my; speed/3.6; yawrate/180*pi];
@@ -237,19 +237,21 @@ end
 
 %% Plot filter performance
 
+%Plot Covariance values for each estimated states
 plotP(Px, Py, Pdx, Pdy, Pddx)
 
-% Create the figure and axis
+
+% Plot EKF Filter performance using a binary color map
 figure('Position', [100, 100, 600, 600]);
 im = imagesc(P);
 colormap('gray'); % This is equivalent to the 'binary' colormap in Python
 title(sprintf('Covariance Matrix P (after %i Filter Steps)', sample_size));
 yticks(0:5);
-yticklabels({'$x$', '$y$', '$\psi$', '$v$', '$\dot \psi$'});
-ax = gca;
+yticklabels({'x', 'y', '\psi', 'v', '\psi dot'});
+ax = gca; %returns current axes of the figure
 ax.YAxis.FontSize = 22;
 xticks(0:5);
-xticklabels({'$x$', '$y$', '$\psi$', '$v$', '$\dot \psi$'});
+xticklabels({'x', 'y', '\psi', 'v', '\psi dot'});
 ax.XAxis.FontSize = 22;
 xlim([-0.5,4.5]);
 ylim([-0.5, 4.5]);
@@ -259,18 +261,19 @@ ax.Position = ax.Position + [0 0 -0.05 0]; % Adjust the position of the axis to 
 
 % Save figure
 saveas(gcf, 'filter_performance.png');
+
 %% Plot Kalman Gains
 
 figure('Position', [10, 10, 1600, 900]);
-
-numSteps = length(measured_states(1,:));
+%numSteps = length(measured_states(1,:));
+numSteps = sample_size;
 
 stairs(1:numSteps, Kx, 'DisplayName', 'x');
 hold on;
 stairs(1:numSteps, Ky, 'DisplayName', 'y');
 stairs(1:numSteps, Kdx, 'DisplayName', '\psi');
 stairs(1:numSteps, Kdy, 'DisplayName', 'v');
-stairs(1:numSteps, Kddx, 'DisplayName', '\dot{\psi}');
+stairs(1:numSteps, Kddx, 'DisplayName', '\psi dot');
 
 xlabel('Filter Step');
 ylabel('');
@@ -284,15 +287,14 @@ saveas(gcf, 'kalman_gains.png');
 hold off;
 
 %% Plot state vectors
-% Assuming x0, x1, x2, x3, x4, measurements, mx, my, course, speed, and yawrate are already defined
 
 figure('Position', [10, 10, 1600, 1600]);
 
-% First subplot
+% First subplot for x and y position
 subplot(4,1,1);
-stairs(1:length(measured_states(1,:)), x0 - mx(1), 'DisplayName', 'x');
+stairs(1:numSteps, x0 - mx(1), 'DisplayName', 'x');
 hold on;
-stairs(1:length(measured_states(1,:)), x1 - my(1), 'DisplayName', 'y');
+stairs(1:numSteps, x1 - my(1), 'DisplayName', 'y');
 title('Extended Kalman Filter State Estimates (State Vector x)');
 legend('Location', 'best', 'FontSize', 22);
 ylabel('Position (relative to start) [m]');
@@ -319,9 +321,9 @@ hold off;
 
 % Fourth subplot
 subplot(4,1,4);
-stairs(1:length(measured_states(1,:)), x4, 'DisplayName', '\dot{\psi}');
+stairs(1:length(measured_states(1,:)), x4, 'DisplayName', '\psi dot');
 hold on;
-stairs(1:length(measured_states(1,:)), yawrate/180*pi, 'DisplayName', '\dot{\psi} (from IMU as reference)');
+stairs(1:length(measured_states(1,:)), yawrate/180*pi, 'DisplayName', '\psi dot (from IMU as reference)');
 ylabel('Yaw Rate');
 ylim([-0.6, 0.6]);
 legend('Location', 'best', 'FontSize', 16);
@@ -329,9 +331,9 @@ xlabel('Filter Step');
 hold off;
 
 % Save figure
-%saveas(gcf, 'state_estimates.png');
+saveas(gcf, 'state_estimates.png');
 
-%% Plot Vehicle Location and Orientation
+%% Plot Vehicle Location and Heading
 
 % Plot Measured and Estimated Vehicle Position
 figure('Position', [10, 10, 1600, 900]);
@@ -402,7 +404,7 @@ function plotP(Px, Py, Pdx, Pdy, Pddx)
     stairs(0:m-1, Py, 'DisplayName', 'y');
     stairs(0:m-1, Pdx, 'DisplayName', '\psi');
     stairs(0:m-1, Pdy, 'DisplayName', 'v');
-    stairs(0:m-1, Pddx, 'DisplayName', '\dot psi');
+    stairs(0:m-1, Pddx, 'DisplayName', '\psi dot');
     
     % Add labels and title to the plot
     xlabel('Filter Step');
