@@ -4,7 +4,7 @@
 %This program simulates a sensor fusion design proposal using a GPS and
 %IMU to determine location and heading of a vehicle in a 2D plane. Extended
 %Kalman Filter is used to estimate the true state values while gaussian noise is
-%applied to the true state values to simulate sensor outputs. 
+%applied to the true state values to simulate sensor readings. 
 
 %% Initialization
 
@@ -62,7 +62,6 @@ sd_velocity_R = 1; %std dev for velocity measurement
 sd_yaw_rate_R = 0.1; %std dev for yaw rate measurement
 %Set Measurement Noise Covariance Matrix R below. Each element in the diagonal
 %are the variance values obtained by squaring the std dev values
-%R = diag([(sd_GPS_R^2) (sd_GPS_R^2) (sd_yaw_R^2) (sd_velocity_R^2) (sd_yaw_rate_R^2)]);
 R = diag([(sd_GPS_R^2) (sd_GPS_R^2) (sd_velocity_R^2) (sd_yaw_rate_R^2)]);
 
 %% Extraction of Raw GPS Data from file
@@ -119,10 +118,6 @@ h=eye(4,4);
 
 % Set initial value of state variables here. The data from the 
 x = [mx(1); my(1); course(1)*(pi/180); speed(1)/3.6+0.001; yawrate(1)*(pi/180)];
-
-% Calculate U and V for quiver plots
-%U = cos(x(3)) * x(4);
-%V = sin(x(3)) * x(4);
 
 %Setup true state matrix here:
 true_states = [mx; my; speed/3.6; yawrate/180*pi];
@@ -292,9 +287,9 @@ figure('Position', [10, 10, 1600, 1600]);
 
 % First subplot for x and y position
 subplot(4,1,1);
-stairs(1:numSteps, x0 - mx(1), 'DisplayName', 'x');
+stairs(1:numSteps, x0 - mx(1), 'DisplayName', 'x'); %x0 values are subtracted with the origin point to compute for relative position of vehicle from origin.
 hold on;
-stairs(1:numSteps, x1 - my(1), 'DisplayName', 'y');
+stairs(1:numSteps, x1 - my(1), 'DisplayName', 'y'); %x1 values are subtracted with the origin point to compute for relative position of vehicle from origin.
 title('Extended Kalman Filter State Estimates (State Vector x)');
 legend('Location', 'best', 'FontSize', 22);
 ylabel('Position (relative to start) [m]');
@@ -302,18 +297,18 @@ hold off;
 
 % Second subplot
 subplot(4,1,2);
-stairs(1:length(measured_states(1,:)), x2, 'DisplayName', '\psi');
+stairs(1:numSteps, x2, 'DisplayName', 'Estimated \psi');
 hold on;
-stairs(1:length(measured_states(1,:)), mod((course/180*pi + pi), (2*pi)) - pi, 'DisplayName', '\psi (from GPS as reference)');
+stairs(1:numSteps, mod((course/180*pi + pi), (2*pi)) - pi, 'DisplayName', 'True \psi');
 ylabel('Course');
 legend('Location', 'best', 'FontSize', 16);
 hold off;
 
 % Third subplot
 subplot(4,1,3);
-stairs(1:length(measured_states(1,:)), x3, 'DisplayName', 'v');
+stairs(1:numSteps, x3, 'DisplayName', 'Estimated v');
 hold on;
-stairs(1:length(measured_states(1,:)), speed/3.6, 'DisplayName', 'v (from GPS as reference)');
+stairs(1:numSteps, speed/3.6, 'DisplayName', 'True v');
 ylabel('Velocity');
 ylim([0, 30]);
 legend('Location', 'best', 'FontSize', 16);
@@ -321,9 +316,9 @@ hold off;
 
 % Fourth subplot
 subplot(4,1,4);
-stairs(1:length(measured_states(1,:)), x4, 'DisplayName', '\psi dot');
+stairs(1:numSteps, x4, 'DisplayName', 'Estimated \psi dot');
 hold on;
-stairs(1:length(measured_states(1,:)), yawrate/180*pi, 'DisplayName', '\psi dot (from IMU as reference)');
+stairs(1:numSteps, yawrate/180*pi, 'DisplayName', 'True \psi dot');
 ylabel('Yaw Rate');
 ylim([-0.6, 0.6]);
 legend('Location', 'best', 'FontSize', 16);
@@ -388,6 +383,13 @@ hold off;
 % save figure
 saveas(gcf, 'Heading_map.png');
 
+%% Calculate Mean Square Error of Each State Estimates of the EKF
+
+MSE_x_pos = Calc_MSE(x0,mx) %Calculate MSE of X-position estimate
+MSE_y_pos = Calc_MSE(x1,my) %Calculate MSE of Y-position estimate
+MSE_yaw = Calc_MSE(x2,course*(pi/180)) %Calculate MSE of heading angle estimate
+MSE_vel = Calc_MSE(x3,speed/3.6) %Calculate MSE of velocity estimate
+MSE_yaw_rate = Calc_MSE(x4,yawrate*(pi/180)) %Calculate MSE of yaw rate estimate
 
 %% Functions
 
@@ -439,5 +441,18 @@ function savestates(x, Z, P, K)
     Kddx(end+1) = K(5,1);
 end
 
+%Function to compute for MSE
+function MSE = Calc_MSE(x_est,x_true)
 
+N=size(x_est,2);
+sum = 0;
+
+for k=1:N
+    diff_squared = (x_est(k)-x_true(k))^2;
+    sum = sum + diff_squared;
+end
+
+MSE = sum/N;
+
+end
 
